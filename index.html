@@ -6,6 +6,8 @@
     <title>Dashboard - Vacacional Marzo 2026</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e0e0e0; min-height: 100vh; }
@@ -90,8 +92,11 @@
                 <option value="all">Todas las sedes</option>
             </select>
         </div>
-        <div style="margin-left:auto;">
-            <button class="btn btn-secondary" onclick="exportReport()">⬇️ Exportar reporte</button>
+        <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
+            <input type="file" id="fileInputReload" accept=".csv" onchange="reloadCSV(event)" style="display:none;">
+            <button class="btn btn-secondary" onclick="document.getElementById('fileInputReload').click()">📂 Cargar nuevo CSV</button>
+            <button class="btn btn-secondary" onclick="exportReport()">⬇️ Exportar CSV</button>
+            <button class="btn btn-primary" onclick="exportPDF()">📄 Exportar PDF</button>
         </div>
     </div>
 
@@ -395,9 +400,22 @@ function updateTable(data) {
         </tr>`).join('');
 }
 
+function reloadCSV(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    Papa.parse(file, {
+        header: true,
+        delimiter: ';',
+        skipEmptyLines: true,
+        complete: function(results) {
+            processData(results.data);
+            event.target.value = '';
+        }
+    });
+}
+
 function exportReport() {
     const rows = [['Fecha','Distrito','Sede','Horario','Asistentes']];
-    const tbody = document.getElementById('tablaBody');
     document.querySelectorAll('#tablaBody tr').forEach(tr => {
         const cols = tr.querySelectorAll('td');
         rows.push([cols[0].textContent, cols[1].textContent, cols[2].textContent, cols[3].textContent, cols[4].textContent]);
@@ -406,8 +424,61 @@ function exportReport() {
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `reporte-vacacional-${new Date().toISOString().slice(0,10)}.csv`;
+    const filterLabel = {'today':'diario','week':'semanal','all':'consolidado','range':'rango'}[currentFilter] || currentFilter;
+    a.download = `reporte-vacacional-${filterLabel}-${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
+}
+
+async function exportPDF() {
+    const { jsPDF } = window.jspdf;
+    const btn = document.querySelector('[onclick="exportPDF()"]');
+    btn.textContent = '⏳ Generando PDF...';
+    btn.disabled = true;
+
+    const dashboard = document.getElementById('dashboard');
+    const canvas = await html2canvas(dashboard, { backgroundColor: '#0f1117', scale: 1.5, useCORS: true });
+    const imgData = canvas.toDataURL('image/png');
+
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfH = pdf.internal.pageSize.getHeight();
+    const imgH = (canvas.height * pdfW) / canvas.width;
+    let yPos = 0;
+
+    // Header
+    pdf.setFillColor(26, 29, 46);
+    pdf.rect(0, 0, pdfW, 12, 'F');
+    pdf.setTextColor(32, 178, 170);
+    pdf.setFontSize(10);
+    pdf.text('Ministerio de Educación · Zona 8 · Dashboard Vacacional Marzo 2026', 10, 8);
+    pdf.setTextColor(136, 136, 136);
+    pdf.setFontSize(8);
+    const filterLabel = {'today':'Reporte del día','week':'Reporte semanal','all':'Consolidado total','range':'Rango de fechas'}[currentFilter] || currentFilter;
+    pdf.text(`${filterLabel} · Generado: ${new Date().toLocaleString('es-EC')}`, pdfW - 10, 8, { align: 'right' });
+
+    let remainingH = imgH;
+    const pageH = pdfH - 15;
+    let pageNum = 1;
+
+    while (remainingH > 0) {
+        const sliceH = Math.min(remainingH, pageH);
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = (sliceH / imgH) * canvas.height;
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(canvas, 0, yPos * (canvas.height / imgH), canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
+        const sliceData = sliceCanvas.toDataURL('image/png');
+        if (pageNum > 1) { pdf.addPage(); }
+        pdf.addImage(sliceData, 'PNG', 0, 13, pdfW, sliceH);
+        remainingH -= sliceH;
+        yPos += sliceH;
+        pageNum++;
+    }
+
+    const filterSlug = {'today':'diario','week':'semanal','all':'consolidado','range':'rango'}[currentFilter] || currentFilter;
+    pdf.save(`reporte-vacacional-${filterSlug}-${new Date().toISOString().slice(0,10)}.pdf`);
+    btn.textContent = '📄 Exportar PDF';
+    btn.disabled = false;
 }
 </script>
 </body>
