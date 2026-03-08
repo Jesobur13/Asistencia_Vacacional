@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>UKLLASHA 2026 - Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",sans-serif;background:#0f1117;color:#e0e0e0}
+header{background:linear-gradient(135deg,#1a1d2e,#1f2340);padding:16px 20px;border-bottom:3px solid #20b2aa;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header h1{font-size:1.1rem;color:#20b2aa;font-weight:700}
+header p{font-size:0.72rem;color:#777;margin-top:3px}
+.csv-bar{background:#161927;padding:8px 20px;border-bottom:1px solid #2a2d3e;font-size:0.75rem;color:#777;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.csv-bar b{color:#20b2aa}
+.bar{background:#1a1d2e;padding:10px 20px;display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;border-bottom:1px solid #2a2d3e}
+.bar label{font-size:0.7rem;color:#aaa;display:block;margin-bottom:2px}
+select,input[type=date]{background:#0f1117;border:1px solid #20b2aa55;color:#e0e0e0;padding:5px 9px;border-radius:5px;font-size:0.78rem}
+.btn{padding:6px 13px;border-radius:5px;border:none;cursor:pointer;font-size:0.78rem;font-weight:600}
+.bt{background:#20b2aa;color:#0f1117}.bd{background:#252836;color:#ccc;border:1px solid #3a3d50}
+.bg{background:#c8970f;color:#fff}.bact{background:#20b2aa!important;color:#0f1117!important}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:14px 20px}
+.kcard{background:#1a1d2e;border-radius:10px;padding:16px 14px;border-left:4px solid #20b2aa}
+.kcard .v{font-size:2rem;font-weight:800;color:#20b2aa;line-height:1}
+.kcard .l{font-size:0.7rem;color:#888;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+.kcard .delta{font-size:0.72rem;margin-top:5px;font-weight:600}
+.up{color:#4caf50}.dn{color:#ef5350}.eq{color:#888}
+.sec{padding:6px 20px 4px;font-size:0.7rem;color:#20b2aa;text-transform:uppercase;letter-spacing:1px;font-weight:700;border-left:3px solid #20b2aa;margin:8px 20px 0}
+.cgrid{display:grid;gap:12px;padding:10px 20px}
+.cgrid-2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.cgrid-1{grid-template-columns:1fr}
+.cc{background:#1a1d2e;border-radius:10px;padding:16px}
+.cc h3{font-size:0.78rem;color:#aaa;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.cc h3 span{background:#20b2aa22;color:#20b2aa;padding:2px 7px;border-radius:4px;font-size:0.65rem}
+.stable{width:100%;border-collapse:collapse;font-size:0.78rem}
+.stable th{background:#20b2aa15;color:#20b2aa;padding:7px 10px;text-align:left;font-weight:600;font-size:0.7rem;text-transform:uppercase}
+.stable td{padding:7px 10px;border-bottom:1px solid #252836;color:#ccc}
+.stable tr:hover td{background:#1f2235}
+.bar-cell{display:flex;align-items:center;gap:6px}
+.mini-bar{height:6px;border-radius:3px;min-width:4px}
+.tw{padding:0 20px 30px;overflow-x:auto}
+table.dt{width:100%;border-collapse:collapse;background:#1a1d2e;border-radius:10px;overflow:hidden;font-size:0.78rem}
+table.dt th{background:#20b2aa18;color:#20b2aa;padding:9px 11px;text-align:left;font-weight:600;font-size:0.7rem;text-transform:uppercase}
+table.dt td{padding:7px 11px;border-bottom:1px solid #252836;color:#ccc}
+table.dt tr:hover td{background:#1f2235}
+.bx{padding:2px 7px;border-radius:4px;font-size:0.65rem;font-weight:700;background:#20b2aa20;color:#20b2aa}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>&#128202; Vacacional UKLLASHA 2026</h1>
+    <p>Ministerio de Educaci&#243;n &middot; Zona 8 &middot; Seguimiento Diario de Asistencia</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <label class="btn bd" for="fi2" style="cursor:pointer">&#128194; Cargar CSV</label>
+    <input type="file" id="fi2" accept=".csv" style="display:none">
+    <button class="btn bd" onclick="eCSV()">&#8659; CSV</button>
+    <button class="btn bg" onclick="ePDF('m')">&#10024; PDF Moderno</button>
+    <button class="btn bt" onclick="ePDF('c')">&#128196; PDF Cl&#225;sico</button>
+  </div>
+</header>
+<div class="csv-bar">&#128193; Datos: <b id="csvName">Reporte-de-asistencia CSV &#8212; datos reales</b> &nbsp;&middot;&nbsp; <span id="csvInfo"></span></div>
+<div class="bar">
+  <div><label>Vista</label>
+    <div style="display:flex;gap:5px">
+      <button class="btn bt bact" id="btoday" onclick="sF('today')">Hoy</button>
+      <button class="btn bd" id="bweek" onclick="sF('week')">Semana</button>
+      <button class="btn bd" id="ball" onclick="sF('all')">Todo</button>
+    </div>
+  </div>
+  <div><label>Desde</label><input type="date" id="dfrom" onchange="sF('range')"></div>
+  <div><label>Hasta</label><input type="date" id="dto" onchange="sF('range')"></div>
+  <div><label>Sede</label><select id="fS" onchange="rnd()"><option value="all">Todas</option></select></div>
+</div>
+<div class="kpis">
+  <div class="kcard"><div class="v" id="k1">0</div><div class="l">Total Asistentes</div><div class="delta" id="k1d"></div></div>
+  <div class="kcard"><div class="v" id="k2">0</div><div class="l">Sedes Activas</div></div>
+  <div class="kcard"><div class="v" id="k3">0</div><div class="l">D&#237;as Registrados</div></div>
+  <div class="kcard"><div class="v" id="k4">0</div><div class="l">Promedio / D&#237;a</div></div>
+  <div class="kcard"><div class="v" id="k5">0</div><div class="l">Mejor Sede</div><div class="delta" id="k5d" style="font-size:0.65rem;color:#aaa;margin-top:3px"></div></div>
+</div>
+<div class="sec">&#128200; Tendencia por Sede</div>
+<div class="cgrid cgrid-1" style="padding-top:10px">
+  <div class="cc"><h3>Evoluci&#243;n diaria por sede <span>Multi-l&#237;nea</span></h3><canvas id="cTrend" height="80"></canvas></div>
+</div>
+<div class="sec" style="margin-top:10px">&#128202; Distribuci&#243;n</div>
+<div class="cgrid cgrid-2" style="padding-top:10px">
+  <div class="cc"><h3>Total por sede <span>Barras</span></h3><canvas id="cA"></canvas></div>
+  <div class="cc"><h3>Total diario <span>&#193;rea</span></h3><canvas id="cB"></canvas></div>
+  <div class="cc"><h3>Por horario <span>Dona</span></h3><canvas id="cC"></canvas></div>
+  <div class="cc"><h3>Semanal <span>Barras</span></h3><canvas id="cD"></canvas></div>
+</div>
+<div class="sec" style="margin-top:10px">&#127eb; Resumen por Sede</div>
+<div style="padding:10px 20px">
+  <div class="cc">
+    <h3>Detalle con variaci&#243;n <span>Tabla</span></h3>
+    <table class="stable"><thead><tr><th>Sede</th><th>Dist.</th><th>Total</th><th>%</th><th>D&#237;as</th><th>Prom/d&#237;a</th><th>Tendencia</th></tr></thead><tbody id="sedeTable"></tbody></table>
+  </div>
+</div>
+<div class="sec" style="margin-top:10px">&#128197; Matriz Asistencia Diaria</div>
+<div style="padding:10px 20px">
+  <div class="cc"><h3>Sedes vs Fechas <span>Matriz</span></h3><div style="overflow-x:auto"><table class="stable" id="matrixTable"></table></div></div>
+</div>
+<div class="sec" style="margin-top:10px">&#128218; Detalle Completo</div>
+<div class="tw" style="padding-top:10px">
+  <table class="dt"><thead><tr><th>Fecha</th><th>Dist.</th><th>Sede</th><th>Horario</th><th>Asist.</th><th>Var.</th></tr></thead><tbody id="tb"></tbody></table>
+</div>
+
+<script>
+var PREDATA=[{"fecha": "02/03/2026", "dist": "09D10", "sede": "Luis Fernando Vivero", "h": "09:00", "n": 120, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D04", "sede": "Febres Cordero", "h": "09:00", "n": 70, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D01", "sede": "Jose Vicente Trujillo", "h": "09:00", "n": 32, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D01", "sede": "Jose Vicente Trujillo", "h": "10:30", "n": 30, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D06", "sede": "Victor Hugo Mora", "h": "09:00", "n": 14, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D06", "sede": "Victor Hugo Mora", "h": "11:00", "n": 12, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D24", "sede": "Provincia Del Canar", "h": "09:00", "n": 46, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D24", "sede": "Provincia Del Canar", "h": "14:00", "n": 8, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D24", "sede": "Monsenor Leonidas Proano", "h": "09:00", "n": 13, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D24", "sede": "Monsenor Leonidas Proano", "h": "14:00", "n": 10, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D05", "sede": "Manuela Canizares", "h": "09:00", "n": 33, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D05", "sede": "Manuela Canizares", "h": "13:00", "n": 12, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D02", "sede": "Amarilis Fuentes Alcivar", "h": "09:00", "n": 7, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D09", "sede": "Chongon", "h": "08:00", "n": 52, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D09", "sede": "Chongon", "h": "13:00", "n": 8, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D03", "sede": "Provincia De Los Rios", "h": "09:00", "n": 13, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D03", "sede": "Provincia De Los Rios", "h": "14:00", "n": 5, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D08", "sede": "Leonidas Garcia", "h": "08:00", "n": 35, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D08", "sede": "Leonidas Garcia", "h": "10:00", "n": 20, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D07", "sede": "Vergeles", "h": "10:00", "n": 1, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D07", "sede": "Vergeles", "h": "11:00", "n": 9, "w": "Sem 10 (2026)"}, {"fecha": "02/03/2026", "dist": "09D07", "sede": "Vergeles", "h": "14:00", "n": 10, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D08", "sede": "Leonidas Garcia", "h": "08:00", "n": 30, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D08", "sede": "Leonidas Garcia", "h": "10:00", "n": 32, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D04", "sede": "Febres Cordero", "h": "09:00", "n": 78, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D05", "sede": "Manuela Canizares", "h": "09:00", "n": 38, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D05", "sede": "Manuela Canizares", "h": "13:00", "n": 13, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D06", "sede": "Victor Hugo Mora", "h": "09:00", "n": 19, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D06", "sede": "Victor Hugo Mora", "h": "11:00", "n": 21, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D02", "sede": "Amarilis Fuentes Alcivar", "h": "09:00", "n": 12, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D02", "sede": "Amarilis Fuentes Alcivar", "h": "14:00", "n": 5, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D03", "sede": "Provincia De Los Rios", "h": "09:00", "n": 14, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D03", "sede": "Provincia De Los Rios", "h": "14:00", "n": 5, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D09", "sede": "Chongon", "h": "08:00", "n": 75, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D09", "sede": "Chongon", "h": "13:00", "n": 10, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D07", "sede": "Vergeles", "h": "11:00", "n": 3, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D07", "sede": "Vergeles", "h": "15:00", "n": 19, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D01", "sede": "Jose Vicente Trujillo", "h": "09:00", "n": 37, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D24", "sede": "Provincia Del Canar", "h": "09:00", "n": 28, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D24", "sede": "Provincia Del Canar", "h": "14:00", "n": 13, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D24", "sede": "Monsenor Leonidas Proano", "h": "09:00", "n": 13, "w": "Sem 10 (2026)"}, {"fecha": "03/03/2026", "dist": "09D24", "sede": "Monsenor Leonidas Proano", "h": "14:00", "n": 10, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D24", "sede": "Provincia Del Canar", "h": "09:00", "n": 45, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D24", "sede": "Provincia Del Canar", "h": "14:00", "n": 7, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D24", "sede": "Monsenor Leonidas Proano", "h": "09:00", "n": 46, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D24", "sede": "Monsenor Leonidas Proano", "h": "14:00", "n": 8, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D04", "sede": "Febres Cordero", "h": "09:00", "n": 86, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D06", "sede": "Victor Hugo Mora", "h": "09:00", "n": 21, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D06", "sede": "Victor Hugo Mora", "h": "11:00", "n": 23, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D08", "sede": "Leonidas Garcia", "h": "08:00", "n": 22, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D08", "sede": "Leonidas Garcia", "h": "10:00", "n": 29, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D03", "sede": "Provincia De Los Rios", "h": "09:00", "n": 13, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D03", "sede": "Provincia De Los Rios", "h": "14:00", "n": 4, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D05", "sede": "Manuela Canizares", "h": "09:00", "n": 39, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D05", "sede": "Manuela Canizares", "h": "13:00", "n": 11, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D10", "sede": "Luis Fernando Vivero", "h": "09:00", "n": 150, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D01", "sede": "Jose Vicente Trujillo", "h": "09:00", "n": 37, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D09", "sede": "Chongon", "h": "08:00", "n": 68, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D09", "sede": "Chongon", "h": "13:00", "n": 12, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D07", "sede": "Vergeles", "h": "11:00", "n": 3, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D07", "sede": "Vergeles", "h": "14:00", "n": 7, "w": "Sem 10 (2026)"}, {"fecha": "04/03/2026", "dist": "09D07", "sede": "Vergeles", "h": "15:00", "n": 6, "w": "Sem 10 (2026)"}];
+var SM={
+"Jose Vicente Trujillo":[["HORARIO - 09:00","NUMERO DE ASISTENTES - 09:00"],["HORARIO 10:30","NUMERO DE ASISTENTES - 10:30"]],
+"Amarilis Fuentes Alcivar":[["HORARIO - 09:001","NUMERO DE ASISTENTES - 09:001"],["HORARIO 14:00","NUMERO DE ASISTENTES 14:00"]],
+"Provincia De Los Rios":[["HORARIO - 09:002","NUMERO DE ASISTENTES - 09:002"],["HORARIO 14:001","NUMERO DE ASISTENTES 14:001"]],
+"Febres Cordero":[["HORARIO - 09:003","NUMERO DE ASISTENTES - 09:003"]],
+"Manuela Canizares":[["HORARIO - 09:004","NUMERO DE ASISTENTES - 09:004"],["HORARIO 13:00","NUMERO DE ASISTENTES 13:00"]],
+"Victor Hugo Mora":[["HORARIO - 09:005","NUMERO DE ASISTENTES - 09:005"],["HORARIO 11:00","NUMERO DE ASISTENTES 11:00"]],
+"Vergeles":[["HORARIO - 10:00","NUMERO DE ASISTENTES - 10:00"],["HORARIO 11:001","NUMERO DE ASISTENTES 11:001"],["HORARIO 14:002","NUMERO DE ASISTENTES 14:002"],["HORARIO 15:00","NUMERO DE ASISTENTES 15:00"]],
+"Leonidas Garcia":[["HORARIO - 08:00","NUMERO DE ASISTENTES - 08:00"],["HORARIO - 10:001","NUMERO DE ASISTENTES - 10:001"]],
+"Chongon":[["HORARIO - 08:001","NUMERO DE ASISTENTES - 08:001"],["HORARIO 13:001","NUMERO DE ASISTENTES 13:001"]],
+"Luis Fernando Vivero":[["HORARIO - 09:006","NUMERO DE ASISTENTES - 09:006"]],
+"Velasco Ibarra":[["HORARIO - 10:002","NUMERO DE ASISTENTES - 10:002"],["HORARIO 14:003","NUMERO DE ASISTENTES 14:003"]],
+"Monsenor Leonidas Proano":[["HORARIO - 09:007","NUMERO DE ASISTENTES - 09:007"],["HORARIO 14:004","NUMERO DE ASISTENTES 14:004"]],
+"Provincia De Canar":[["HORARIO - 09:007","NUMERO DE ASISTENTES - 09:007"],["HORARIO 14:004","NUMERO DE ASISTENTES 14:004"]]
+};
+var CLR=["#20b2aa","#4fc3f7","#f06292","#aed581","#ffb74d","#ba68c8","#4db6ac","#7986cb","#ff8a65","#a1887f","#90a4ae","#80cbc4"];
+var DATA=[],CH={},CUR="today";
+
+function pd(s){
+  if(!s)return null;
+  var raw=s.trim().slice(0,10);
+  var p=raw.split("/");
+  if(p.length===3&&p[2].length===4)return new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+  var d=new Date(raw);return isNaN(d)?null:d;
+}
+function gw(d){var dt=new Date(d);dt.setHours(0,0,0,0);dt.setDate(dt.getDate()+4-(dt.getDay()||7));var ys=new Date(dt.getFullYear(),0,1);return "Sem "+Math.ceil((((dt-ys)/86400000)+1)/7)+" ("+dt.getFullYear()+")";}
+function nrm(s){if(!s)return"";var r=s.trim().normalize("NFD").replace(/[̀-ͯ]/g,"");return r.split(/\s+/).map(w=>w?w[0].toUpperCase()+w.slice(1).toLowerCase():"").join(" ");}
+function fmtN(n){return Number(n).toLocaleString("es-EC");}
+function sortF(arr){return arr.slice().sort((a,b)=>{var da=pd(a),db=pd(b);return da&&db?da-db:0;});}
+
+function ini(arr){
+  DATA=arr.map(d=>{d._d=pd(d.fecha);return d;});
+  var ss=[...new Set(DATA.map(d=>d.sede))].sort();
+  var sel=document.getElementById("fS");sel.innerHTML="<option value='all'>Todas</option>";
+  ss.forEach(s=>{var o=document.createElement("option");o.value=s;o.textContent=s;sel.appendChild(o);});
+  var fechas=sortF([...new Set(DATA.map(d=>d.fecha))]);
+  document.getElementById("csvInfo").textContent=fechas.length>0?fechas[0]+" al "+fechas[fechas.length-1]+" · "+DATA.length+" registros · "+ss.length+" sedes":"";
+  sF("all");
+}
+
+function bld(rows){
+  var o=[];
+  rows.forEach(row=>{
+    var sd=nrm(row["SEDE"]||""),dt=(row["DISTRITO"]||"").trim();
+    var fr=(row["FECHA"]||row["Hora de inicio"]||"").trim().slice(0,10);
+    var fd=pd(fr);
+    if(!sd||!fd)return;
+    var rk=Object.keys(row);
+    for(var ri=0;ri<rk.length-1;ri++){
+      var col=rk[ri].trim().toUpperCase();
+      if(col.indexOf("HORARIO")===0&&row[rk[ri]]){
+        var nrVal=row[rk[ri+1]]||"";
+        var ns=(nrVal.match(/\d+/)||["0"])[0];
+        var n=parseInt(ns)||0;
+        if(nrVal.trim()==="")continue;o.push({fecha:fr,dist:dt,sede:sd,h:row[rk[ri]],n:n,w:gw(fd),_d:fd});
+      }
+    }
+  });return o;
+}
+
+window.onload=function(){
+  ini(PREDATA);
+  document.getElementById("fi2").addEventListener("change",function(e){
+    var f=e.target.files[0];if(!f)return;
+    Papa.parse(f,{header:true,delimiter:";",skipEmptyLines:true,complete:function(res){
+      var nd=bld(res.data);
+      if(!nd.length){alert("No se encontraron registros válidos.\nVerifica que el CSV tenga las columnas: SEDE, FECHA, DISTRITO y las columnas de HORARIO.");return;}
+      document.getElementById("csvName").textContent=f.name;ini(nd);e.target.value="";
+    }});
+  });
+};
+
+function sF(t){CUR=t;["today","week","all"].forEach(id=>{var b=document.getElementById("b"+id);if(b)b.className="btn bd";});var ab=document.getElementById("b"+t);if(ab)ab.className="btn bt bact";rnd();}
+
+function gF(){
+  var sd=document.getElementById("fS").value,to=new Date();to.setHours(0,0,0,0);
+  return DATA.filter(d=>{
+    if(sd!=="all"&&d.sede!==sd)return false;
+    var dd=d._d?new Date(d._d):null;if(dd)dd.setHours(0,0,0,0);
+    if(CUR==="today")return dd&&dd.getTime()===to.getTime();
+    if(CUR==="week"){var sw=new Date(to);sw.setDate(to.getDate()-to.getDay()+1);return dd&&dd>=sw&&dd<=to;}
+    if(CUR==="range"){var fr=document.getElementById("dfrom").value,to2=document.getElementById("dto").value;if(!fr||!to2)return true;return dd&&dd>=new Date(fr)&&dd<=new Date(to2+"T23:59:59");}
+    return true;
+  });
+}
+
+function rnd(){
+  var data=gF();
+  var tot=data.reduce((s,d)=>s+d.n,0);
+  var sedes=[...new Set(data.map(d=>d.sede))].sort();
+  var fechas=sortF([...new Set(data.map(d=>d.fecha))]);
+  document.getElementById("k1").textContent=fmtN(tot);
+  document.getElementById("k2").textContent=sedes.length;
+  document.getElementById("k3").textContent=fechas.length;
+  document.getElementById("k4").textContent=fechas.length>0?fmtN(Math.round(tot/fechas.length)):"0";
+  var lastF=fechas[fechas.length-1]||"",prevF=fechas[fechas.length-2]||"";
+  var smx=0,snm="&#8212;";
+  sedes.forEach(s=>{var n=data.filter(d=>d.sede===s&&d.fecha===lastF).reduce((a,d)=>a+d.n,0);if(n>smx){smx=n;snm=s;}});
+  document.getElementById("k5").textContent=fmtN(smx);
+  document.getElementById("k5d").textContent=snm.length>20?snm.slice(0,19)+"...":snm;
+  if(fechas.length>=2){
+    var tH=data.filter(d=>d.fecha===lastF).reduce((s,d)=>s+d.n,0);
+    var tA=data.filter(d=>d.fecha===prevF).reduce((s,d)=>s+d.n,0);
+    var pct=tA>0?Math.round(((tH-tA)/tA)*100):0;
+    var el=document.getElementById("k1d");el.innerHTML=(pct>=0?"&#9650; +":"&#9660; ")+pct+"% vs d&#237;a anterior";el.className="delta "+(pct>0?"up":pct<0?"dn":"eq");
+  }
+  try{drawCharts(data,sedes,fechas);}catch(e){console.error(e);}
+  buildSedeTable(data,sedes,fechas);
+  buildMatrix(data,sedes,fechas);
+  buildTable(data);
+}
+
+function dc(id){if(CH[id]){CH[id].destroy();delete CH[id];}}
+
+function drawCharts(data,sedes,fechas){
+  var gc="#252836",tc="#777";
+  dc("Trend");
+  var ds=sedes.map((s,i)=>{
+    var vals=fechas.map(f=>data.filter(d=>d.sede===s&&d.fecha===f).reduce((a,d)=>a+d.n,0));
+    return {label:s.length>18?s.slice(0,17)+"...":s,data:vals,borderColor:CLR[i%CLR.length],backgroundColor:CLR[i%CLR.length]+"22",fill:false,tension:0.35,pointBackgroundColor:CLR[i%CLR.length],pointRadius:5,pointHoverRadius:7,borderWidth:2.5};
+  });
+  CH.Trend=new Chart(document.getElementById("cTrend"),{type:"line",data:{labels:fechas,datasets:ds},options:{responsive:true,plugins:{legend:{position:"top",labels:{color:"#ccc",font:{size:10},boxWidth:12}},tooltip:{mode:"index",intersect:false}},scales:{x:{grid:{color:gc},ticks:{color:tc}},y:{grid:{color:gc},ticks:{color:tc},beginAtZero:true}}}});
+  dc("A");var sm={};data.forEach(d=>{sm[d.sede]=(sm[d.sede]||0)+d.n;});var sl=Object.keys(sm).sort((a,b)=>sm[b]-sm[a]);
+  CH.A=new Chart(document.getElementById("cA"),{type:"bar",data:{labels:sl.map(s=>s.length>16?s.slice(0,15)+"...":s),datasets:[{data:sl.map(s=>sm[s]),backgroundColor:CLR,borderRadius:5}]},options:{indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{grid:{color:gc},ticks:{color:tc}},y:{grid:{display:false},ticks:{color:"#ccc",font:{size:9}}}}}});
+  dc("B");var dm={};data.forEach(d=>{dm[d.fecha]=(dm[d.fecha]||0)+d.n;});
+  CH.B=new Chart(document.getElementById("cB"),{type:"line",data:{labels:fechas,datasets:[{data:fechas.map(f=>dm[f]||0),borderColor:"#20b2aa",backgroundColor:"#20b2aa18",fill:true,tension:0.3,pointBackgroundColor:"#20b2aa",pointRadius:5,borderWidth:2.5}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:{color:gc},ticks:{color:tc}},y:{grid:{color:gc},ticks:{color:tc},beginAtZero:true}}}});
+  dc("C");var hm={};data.forEach(d=>{hm[d.h]=(hm[d.h]||0)+d.n;});var hl=Object.keys(hm).sort();
+  CH.C=new Chart(document.getElementById("cC"),{type:"doughnut",data:{labels:hl,datasets:[{data:hl.map(h=>hm[h]),backgroundColor:CLR,borderWidth:2,borderColor:"#1a1d2e"}]},options:{plugins:{legend:{position:"right",labels:{color:"#ccc",font:{size:9}}}}}});
+  dc("D");var wm={};data.forEach(d=>{wm[d.w]=(wm[d.w]||0)+d.n;});var wl=Object.keys(wm).sort();
+  CH.D=new Chart(document.getElementById("cD"),{type:"bar",data:{labels:wl,datasets:[{data:wl.map(w=>wm[w]),backgroundColor:"#4fc3f7aa",borderColor:"#4fc3f7",borderWidth:1.5,borderRadius:5}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:{color:gc},ticks:{color:tc}},y:{grid:{color:gc},ticks:{color:tc},beginAtZero:true}}}});
+}
+
+function buildSedeTable(data,sedes,fechas){
+  var tot=data.reduce((s,d)=>s+d.n,0);
+  var lastF=fechas[fechas.length-1]||"",prevF=fechas[fechas.length-2]||"";
+  document.getElementById("sedeTable").innerHTML=sedes.map((s,i)=>{
+    var rows=data.filter(d=>d.sede===s),n=rows.reduce((a,d)=>a+d.n,0);
+    var pct=tot>0?((n/tot)*100).toFixed(1):0,days=[...new Set(rows.map(d=>d.fecha))].length,avg=days>0?Math.round(n/days):0;
+    var nH=data.filter(d=>d.sede===s&&d.fecha===lastF).reduce((a,d)=>a+d.n,0);
+    var nA=data.filter(d=>d.sede===s&&d.fecha===prevF).reduce((a,d)=>a+d.n,0);
+    var tC="color:#888",tT="&#8212;";
+    if(nA>0){var dp=Math.round(((nH-nA)/nA)*100);tC=dp>0?"color:#4caf50":dp<0?"color:#ef5350":"color:#888";tT=(dp>=0?"&#9650; +":"&#9660; ")+dp+"%";}
+    var bw=tot>0?Math.round((n/tot)*100):0;
+    return `<tr><td><b style="color:#e0e0e0">${s}</b></td><td><span class="bx">${rows[0]?rows[0].dist:""}</span></td><td><b style="color:#20b2aa">${fmtN(n)}</b></td><td><div class="bar-cell"><div class="mini-bar" style="width:${bw}px;background:${CLR[i%CLR.length]}"></div>${pct}%</div></td><td>${days}</td><td>${fmtN(avg)}</td><td style="${tC};font-weight:600">${tT}</td></tr>`;
+  }).join("");
+}
+
+function buildMatrix(data,sedes,fechas){
+  var thead="<thead><tr><th>Sede</th>"+fechas.map(f=>`<th style="text-align:center;white-space:nowrap">${f}</th>`).join("")+"<th style='text-align:center'>TOTAL</th></tr></thead>";
+  var mx={},maxV=0;
+  sedes.forEach(s=>{mx[s]={};fechas.forEach(f=>{var n=data.filter(d=>d.sede===s&&d.fecha===f).reduce((a,d)=>a+d.n,0);mx[s][f]=n;if(n>maxV)maxV=n;});});
+  var totF={};fechas.forEach(f=>{totF[f]=data.filter(d=>d.fecha===f).reduce((a,d)=>a+d.n,0);});
+  var rows=sedes.map((s,si)=>{
+    var rt=0,cells=fechas.map((f,fi)=>{
+      var n=mx[s][f]||0,prev=fi>0?mx[s][fechas[fi-1]]||0:0;rt+=n;
+      var op=n>0?Math.round((n/maxV)*45+10):0;
+      var bg=n>0?`background:${CLR[si%CLR.length]}${op.toString(16).padStart(2,"0")}`:""
+      var arr=fi>0&&prev>0?(n>prev?"&#9650;":n<prev?"&#9660;":"&#8212;"):"";
+      var ac=fi>0&&prev>0?(n>prev?"#4caf50":n<prev?"#ef5350":"#888"):"#555";
+      return `<td style="${bg};text-align:center;padding:6px 8px"><b>${n>0?fmtN(n):"-"}</b> <span style="font-size:0.6rem;color:${ac}">${arr}</span></td>`;
+    }).join("");
+    return `<tr><td><b>${s.length>22?s.slice(0,21)+"...":s}</b></td>${cells}<td style="text-align:center"><b style="color:#20b2aa">${fmtN(rt)}</b></td></tr>`;
+  }).join("");
+  var totRow="<tr style='background:#20b2aa15'><td><b style='color:#20b2aa'>TOTAL DIA</b></td>"+fechas.map(f=>`<td style='text-align:center'><b style='color:#4fc3f7'>${fmtN(totF[f]||0)}</b></td>`).join("")+"<td style='text-align:center'><b style='color:#20b2aa'>${fmtN(data.reduce((a,d)=>a+d.n,0))}</b></td></tr>";
+  document.getElementById("matrixTable").innerHTML=thead+"<tbody>"+rows+totRow+"</tbody>";
+}
+
+function buildTable(data){
+  var pm={};
+  var sorted=data.slice().sort((a,b)=>{var da=a._d||new Date(0),db=b._d||new Date(0);return db-da||a.sede.localeCompare(b.sede);});
+  document.getElementById("tb").innerHTML=sorted.map(d=>{
+    var k=d.sede+"|"+d.h,prev=pm[k];
+    var vT="&#8212;",vC="color:#555";
+    if(prev!==undefined){var dp=d.n-prev;vT=(dp>=0?"+":"")+dp;vC=dp>0?"color:#4caf50":dp<0?"color:#ef5350":"color:#888";}
+    pm[k]=d.n;
+    return `<tr><td>${d.fecha}</td><td><span class="bx">${d.dist}</span></td><td>${d.sede}</td><td>${d.h}</td><td><b style="color:#20b2aa">${fmtN(d.n)}</b></td><td style="${vC};font-weight:600;font-size:0.75rem">${vT}</td></tr>`;
+  }).join("");
+}
+
+function eCSV(){
+  var data=gF();var rows=[["Fecha","Distrito","Sede","Horario","Asistentes"]];
+  data.slice().sort((a,b)=>{var da=a._d||0,db=b._d||0;return da-db;}).forEach(d=>rows.push([d.fecha,d.dist,d.sede,d.h,d.n]));
+  var blob=new Blob(["﻿"+rows.map(r=>r.join(";")).join("\n")],{type:"text/csv;charset=utf-8;"});
+  var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="ukllasha-"+new Date().toISOString().slice(0,10)+".csv";a.click();
+}
+
+function ePDF(tipo){var data=gF();if(!data.length){alert("Sin datos.");return;}var sedes=[...new Set(data.map(d=>d.sede))].sort();var fechas=sortF([...new Set(data.map(d=>d.fecha))]);tipo==="m"?pdfM(data,sedes,fechas):pdfC(data,sedes,fechas);}
+
+function pdfM(data,sedes,fechas){
+  var J=window.jspdf.jsPDF,pdf=new J({orientation:"landscape",unit:"mm",format:"a4"});
+  var PW=pdf.internal.pageSize.getWidth(),PH=pdf.internal.pageSize.getHeight(),ML=14,MR=14,LH=6.5,pn=1,y=0;
+  var now=new Date(),ns=now.toLocaleDateString("es-EC",{day:"2-digit",month:"2-digit",year:"numeric"})+" "+now.toLocaleTimeString("es-EC",{hour:"2-digit",minute:"2-digit"});
+  var tot=data.reduce((s,d)=>s+d.n,0),FN={today:"Reporte del Dia",week:"Reporte Semanal",all:"Reporte Consolidado",range:"Reporte por Rango"};
+  function hdr(){pdf.setFillColor(26,29,46);pdf.rect(0,0,PW,26,"F");pdf.setFillColor(32,178,170);pdf.rect(0,24,PW,2.5,"F");pdf.setFont("helvetica","bold");pdf.setFontSize(14);pdf.setTextColor(255,255,255);pdf.text("MINISTERIO DE EDUCACION - ZONA 8",ML,11);pdf.setFont("helvetica","normal");pdf.setFontSize(8);pdf.setTextColor(160,190,190);pdf.text("Vacacional UKLLASHA 2026  |  "+(FN[CUR]||"Reporte"),ML,18);pdf.setTextColor(120,140,140);pdf.text("Generado: "+ns+"    Pag. "+pn,PW-MR,18,{align:"right"});y=32;}
+  function kpi(){var ks=[["TOTAL",fmtN(tot)],["SEDES",""+sedes.length],["DIAS",""+fechas.length],["PROM",fechas.length>0?fmtN(Math.round(tot/fechas.length)):"0"]],cw=(PW-ML*2-9)/4;ks.forEach((k,i)=>{var x=ML+i*(cw+3);pdf.setFillColor(22,26,44);pdf.roundedRect(x,y,cw,18,2,2,"F");pdf.setFillColor(32,178,170);pdf.roundedRect(x,y,3.5,18,1,1,"F");pdf.setFont("helvetica","bold");pdf.setFontSize(15);pdf.setTextColor(32,178,170);pdf.text(k[1],x+7,y+12);pdf.setFont("helvetica","normal");pdf.setFontSize(6.5);pdf.setTextColor(140,150,160);pdf.text(k[0],x+7,y+17);});y+=24;}
+  function secT(t){if(y+12>PH-14){ftr();pdf.addPage();pn++;hdr();}pdf.setFillColor(20,30,50);pdf.rect(ML-2,y,PW-ML*2+4,8,"F");pdf.setFillColor(32,178,170);pdf.rect(ML-2,y,3,8,"F");pdf.setFont("helvetica","bold");pdf.setFontSize(8);pdf.setTextColor(200,230,230);pdf.text(t,ML+5,y+5.5);y+=11;}
+  function tH(cols){pdf.setFillColor(35,48,75);pdf.rect(ML-2,y,PW-ML*2+4,8,"F");pdf.setFont("helvetica","bold");pdf.setFontSize(7.5);pdf.setTextColor(180,220,220);var cx=ML;cols.forEach(c=>{if(c[1]===0)pdf.text(c[0],PW-MR,y+5.5,{align:"right"});else{pdf.text(c[0],cx,y+5.5);cx+=c[1];}});y+=9;}
+  function ftr(){pdf.setDrawColor(32,178,170);pdf.setLineWidth(0.4);pdf.line(0,PH-10,PW,PH-10);pdf.setFont("helvetica","normal");pdf.setFontSize(6.5);pdf.setTextColor(100,120,120);pdf.text("Ministerio de Educacion - Zona 8  |  Vacacional UKLLASHA 2026  |  "+ns,ML,PH-6);pdf.text("Pag. "+pn,PW-MR,PH-6,{align:"right"});}
+  function np(){ftr();pdf.addPage();pn++;hdr();}
+  hdr();kpi();
+  secT("RESUMEN POR SEDE");
+  tH([["SEDE",80],["DIST.",18],["TOTAL",22],["% TOTAL",22],["DIAS",16],["PROM/DIA",22],["TENDENCIA",0]]);
+  var lastF=fechas[fechas.length-1]||"",prevF=fechas[fechas.length-2]||"";
+  sedes.forEach((s,si)=>{
+    if(y+LH>PH-14)np();
+    var rows=data.filter(d=>d.sede===s),n=rows.reduce((a,d)=>a+d.n,0);
+    var pct=tot>0?((n/tot)*100).toFixed(1):0,days=[...new Set(rows.map(d=>d.fecha))].length,avg=days>0?Math.round(n/days):0;
+    var nH=data.filter(d=>d.sede===s&&d.fecha===lastF).reduce((a,d)=>a+d.n,0);
+    var nA=data.filter(d=>d.sede===s&&d.fecha===prevF).reduce((a,d)=>a+d.n,0);
+    var tStr="Sin datos prev.",tc=[140,140,140];
+    if(nA>0){var dp=Math.round(((nH-nA)/nA)*100);tStr=(dp>=0?"+ ":"")+dp+"% vs ant.";tc=dp>0?[76,175,80]:dp<0?[239,83,80]:[140,140,140];}
+    if(si%2===0){pdf.setFillColor(22,26,44);pdf.rect(ML-2,y-1,PW-ML*2+4,LH,"F");}
+    pdf.setFont("helvetica","normal");pdf.setFontSize(8);pdf.setTextColor(210,210,210);
+    pdf.text(s.length>28?s.slice(0,27)+".":s,ML,y+4.5);pdf.text(rows[0]?rows[0].dist:"",ML+80,y+4.5);
+    pdf.setFont("helvetica","bold");pdf.setTextColor(32,178,170);pdf.text(fmtN(n),ML+98,y+4.5);
+    pdf.setFont("helvetica","normal");pdf.setTextColor(180,180,180);
+    pdf.text(pct+"%",ML+120,y+4.5);pdf.text(""+days,ML+142,y+4.5);pdf.text(fmtN(avg),ML+158,y+4.5);
+    pdf.setTextColor(tc[0],tc[1],tc[2]);pdf.text(tStr,PW-MR,y+4.5,{align:"right"});y+=LH;
+  });y+=4;
+  secT("MATRIZ DE ASISTENCIA DIARIA POR SEDE");
+  var cW=Math.min(24,(PW-ML*2-55)/fechas.length);
+  if(y+8>PH-14)np();
+  pdf.setFillColor(35,48,75);pdf.rect(ML-2,y,PW-ML*2+4,8,"F");pdf.setFont("helvetica","bold");pdf.setFontSize(7);pdf.setTextColor(180,220,220);pdf.text("SEDE",ML,y+5.5);fechas.forEach((f,fi)=>pdf.text(f.slice(0,5),ML+50+fi*cW,y+5.5));pdf.text("TOTAL",PW-MR,y+5.5,{align:"right"});y+=9;
+  sedes.forEach((s,si)=>{
+    if(y+LH>PH-14)np();
+    var rt=0,cells=fechas.map(f=>{var n=data.filter(d=>d.sede===s&&d.fecha===f).reduce((a,d)=>a+d.n,0);rt+=n;return n;});
+    if(si%2===0){pdf.setFillColor(22,26,44);pdf.rect(ML-2,y-1,PW-ML*2+4,LH,"F");}
+    pdf.setFont("helvetica","normal");pdf.setFontSize(7.5);pdf.setTextColor(200,200,200);pdf.text(s.length>22?s.slice(0,21)+".":s,ML,y+4.5);
+    cells.forEach((n,fi)=>{var prev=fi>0?cells[fi-1]:0,ac=fi>0&&prev>0?(n>prev?[76,175,80]:n<prev?[239,83,80]:[140,140,140]):[160,160,160];pdf.setTextColor(ac[0],ac[1],ac[2]);pdf.text(n>0?""+n:"-",ML+50+fi*cW+(cW/2),y+4.5,{align:"center"});});
+    pdf.setFont("helvetica","bold");pdf.setTextColor(32,178,170);pdf.text(fmtN(rt),PW-MR,y+4.5,{align:"right"});y+=LH;
+  });
+  if(y+LH>PH-14)np();
+  pdf.setFillColor(20,50,45);pdf.rect(ML-2,y-1,PW-ML*2+4,LH+1,"F");pdf.setFont("helvetica","bold");pdf.setFontSize(7);pdf.setTextColor(32,178,170);pdf.text("TOTAL DIA",ML,y+4.5);
+  fechas.forEach((f,fi)=>{var n=data.filter(d=>d.fecha===f).reduce((a,d)=>a+d.n,0);pdf.setTextColor(79,195,247);pdf.text(""+n,ML+50+fi*cW+(cW/2),y+4.5,{align:"center"});});
+  pdf.setTextColor(32,178,170);pdf.text(fmtN(tot),PW-MR,y+4.5,{align:"right"});y+=LH+4;
+  secT("DETALLE COMPLETO");
+  tH([["FECHA",24],["DIST.",18],["SEDE",82],["HORARIO",22],["ASIST.",0]]);
+  var sg={},pk="";
+  data.slice().sort((a,b)=>{var da=a._d||new Date(0),db=b._d||new Date(0);return da-db||a.sede.localeCompare(b.sede);}).forEach((d,i)=>{
+    var k=d.dist+"|"+d.sede;if(!sg[k])sg[k]=[];sg[k].push(d);
+    if(k!==pk){if(pk){if(y+LH+4>PH-14)np();pdf.setFillColor(20,50,45);pdf.rect(ML-2,y-1,PW-ML*2+4,LH+1,"F");pdf.setFont("helvetica","bold");pdf.setFontSize(7);pdf.setTextColor(32,178,170);pdf.text("SUBTOTAL  "+pk.split("|")[1].toUpperCase(),ML,y+4.5);pdf.text(fmtN(sg[pk].reduce((s,x)=>s+x.n,0)),PW-MR,y+4.5,{align:"right"});y+=LH+2;}pk=k;}
+    if(y+LH>PH-14)np();
+    if(i%2===0){pdf.setFillColor(20,23,38);pdf.rect(ML-2,y-1,PW-ML*2+4,LH,"F");}
+    pdf.setFont("helvetica","normal");pdf.setFontSize(8);pdf.setTextColor(200,200,200);
+    var cx=ML;[d.fecha,d.dist,d.sede.length>30?d.sede.slice(0,29)+".":d.sede,d.h].forEach((v,ci)=>{pdf.text(v,cx,y+4.5);cx+=[24,18,82,22][ci];});
+    pdf.setFont("helvetica","bold");pdf.setTextColor(32,178,170);pdf.text(fmtN(d.n),PW-MR,y+4.5,{align:"right"});y+=LH;
+  });
+  if(pk){if(y+LH+4>PH-14)np();pdf.setFillColor(20,50,45);pdf.rect(ML-2,y-1,PW-ML*2+4,LH+1,"F");pdf.setFont("helvetica","bold");pdf.setFontSize(7);pdf.setTextColor(32,178,170);pdf.text("SUBTOTAL  "+pk.split("|")[1].toUpperCase(),ML,y+4.5);pdf.text(fmtN(sg[pk].reduce((s,x)=>s+x.n,0)),PW-MR,y+4.5,{align:"right"});y+=LH+3;}
+  if(y+16>PH-14)np();
+  pdf.setFillColor(32,178,170);pdf.rect(ML-2,y,PW-ML*2+4,13,"F");pdf.setFont("helvetica","bold");pdf.setFontSize(11);pdf.setTextColor(255,255,255);pdf.text("TOTAL GENERAL:",ML+3,y+9);pdf.text(fmtN(tot),PW-MR,y+9,{align:"right"});y+=17;
+  if(y+30>PH-14)np();y+=6;pdf.setDrawColor(100,120,120);pdf.setLineWidth(0.3);var sig1=ML+20,sig2=PW/2+10;pdf.line(sig1,y+16,sig1+70,y+16);pdf.line(sig2,y+16,sig2+70,y+16);pdf.setFont("helvetica","normal");pdf.setFontSize(7);pdf.setTextColor(150,160,160);pdf.text("Responsable del Programa",sig1+35,y+20,{align:"center"});pdf.text("Coordinador/a Zonal",sig2+35,y+20,{align:"center"});
+  ftr();pdf.save("moderno-ukllasha-"+new Date().toISOString().slice(0,10)+".pdf");
+}
+
+function pdfC(data,sedes,fechas){
+  var J=window.jspdf.jsPDF,pdf=new J({orientation:"portrait",unit:"mm",format:"a4"});
+  var PW=pdf.internal.pageSize.getWidth(),PH=pdf.internal.pageSize.getHeight(),ML=12,MR=12,LH=5.2,pn=1,y=0;
+  var now=new Date(),ns=now.toLocaleDateString("es-EC",{day:"2-digit",month:"2-digit",year:"numeric"})+" "+now.toLocaleTimeString("es-EC",{hour:"2-digit",minute:"2-digit"});
+  var tot=data.reduce((s,d)=>s+d.n,0),FN={today:"REPORTE DIARIO",week:"REPORTE SEMANAL",all:"REPORTE CONSOLIDADO",range:"REPORTE POR RANGO"};
+  function sf(sz,st){pdf.setFont("Courier",st||"normal");pdf.setFontSize(sz);pdf.setTextColor(0,0,0);}
+  function dh(){y=12;pdf.setFillColor(235,235,235);pdf.rect(ML-2,5,PW-ML*2+4,38,"F");pdf.setDrawColor(0);pdf.setLineWidth(0.4);pdf.rect(ML-2,5,PW-ML*2+4,38);sf(8,"bold");pdf.text("MINISTERIO DE EDUCACION - ZONA 8",PW/2,y,{align:"center"});y+=4.5;sf(6.5);pdf.text("Coordinacion Zonal de Educacion",PW/2,y,{align:"center"});y+=4.5;sf(9,"bold");pdf.text("VACACIONAL UKLLASHA 2026",PW/2,y,{align:"center"});y+=4.5;sf(8,"bold");pdf.text(FN[CUR]||"REPORTE",PW/2,y,{align:"center"});y+=4.5;sf(6.5);pdf.text("GENERADO: "+ns+"   PAG: "+pn,PW/2,y,{align:"center"});y+=5;sf(7,"bold");pdf.text("TOTAL: "+fmtN(tot)+"   SEDES: "+sedes.length+"   DIAS: "+fechas.length+"   PROM: "+(fechas.length>0?fmtN(Math.round(tot/fechas.length)):"0"),PW/2,y,{align:"center"});y+=9;pdf.setFillColor(190,190,190);pdf.rect(ML-2,y-4,PW-ML*2+4,7,"F");sf(7,"bold");pdf.text("FECHA",ML,y);pdf.text("DIST",ML+22,y);pdf.text("SEDE",ML+32,y);pdf.text("HOR.",ML+95,y);pdf.text("ASIST",ML+113,y);y+=4;pdf.setLineWidth(0.5);pdf.line(ML-2,y,PW-MR+2,y);y+=2;}
+  function df(){pdf.setDrawColor(0);pdf.setLineWidth(0.5);pdf.line(ML-2,PH-11,PW-MR+2,PH-11);sf(6.5);pdf.text("MINEDUC ZONA 8 - VACACIONAL UKLLASHA 2026",ML,PH-7);pdf.text("PAG."+pn,PW-MR,PH-7,{align:"right"});}
+  function np(){df();pdf.addPage();pn++;dh();}
+  dh();
+  pdf.setFillColor(210,210,210);pdf.rect(ML-2,y-2,PW-ML*2+4,7,"F");sf(7,"bold");pdf.text("RESUMEN POR SEDE",ML,y+3);y+=8;
+  var lastF=fechas[fechas.length-1]||"",prevF=fechas[fechas.length-2]||"";
+  sedes.forEach((s,si)=>{
+    if(y+LH>PH-14)np();
+    var rows=data.filter(d=>d.sede===s),n=rows.reduce((a,d)=>a+d.n,0),pct=tot>0?((n/tot)*100).toFixed(1):0,days=[...new Set(rows.map(d=>d.fecha))].length,avg=days>0?Math.round(n/days):0;
+    var nH=data.filter(d=>d.sede===s&&d.fecha===lastF).reduce((a,d)=>a+d.n,0),nA=data.filter(d=>d.sede===s&&d.fecha===prevF).reduce((a,d)=>a+d.n,0),tStr="";
+    if(nA>0){var dp=Math.round(((nH-nA)/nA)*100);tStr=" ["+(dp>=0?"+":"")+dp+"%]";}
+    if(si%2===0){pdf.setFillColor(248,248,248);pdf.rect(ML-2,y-3,PW-ML*2+4,LH+1,"F");}
+    sf(7.5,"normal");pdf.text(s.length>28?s.slice(0,27)+".":s,ML,y);sf(7.5,"bold");pdf.text(fmtN(n),ML+105,y);sf(7.5,"normal");pdf.text(pct+"%  D:"+days+"  P:"+fmtN(avg)+tStr,ML+118,y);y+=LH;
+  });
+  pdf.setLineWidth(0.5);pdf.line(ML-2,y,PW-MR+2,y);y+=4;
+  if(y+8>PH-14)np();
+  pdf.setFillColor(210,210,210);pdf.rect(ML-2,y-2,PW-ML*2+4,7,"F");sf(7,"bold");pdf.text("MATRIZ DE ASISTENCIA DIARIA",ML,y+3);y+=8;
+  var cW2=Math.min(20,(PW-ML*2-55)/fechas.length);sf(6.5,"bold");pdf.text("SEDE",ML,y);fechas.forEach((f,fi)=>pdf.text(f.slice(0,5),ML+55+fi*cW2,y,{align:"center"}));pdf.text("TOT",PW-MR,y,{align:"right"});y+=4;pdf.setLineWidth(0.3);pdf.line(ML-2,y,PW-MR+2,y);y+=3;
+  sedes.forEach((s,si)=>{
+    if(y+LH>PH-14)np();var rt=0,cells=fechas.map(f=>{var n=data.filter(d=>d.sede===s&&d.fecha===f).reduce((a,d)=>a+d.n,0);rt+=n;return n;});
+    if(si%2===0){pdf.setFillColor(248,248,248);pdf.rect(ML-2,y-3,PW-ML*2+4,LH,"F");}
+    sf(7,"normal");pdf.text(s.length>20?s.slice(0,19)+".":s,ML,y);
+    cells.forEach((n,fi)=>{var prev=fi>0?cells[fi-1]:0,arr=fi>0&&prev>0?(n>prev?"^":n<prev?"v":"="):"";sf(6.5,"normal");pdf.text(n>0?n+arr:"-",ML+55+fi*cW2,y,{align:"center"});});
+    sf(7,"bold");pdf.text(fmtN(rt),PW-MR,y,{align:"right"});y+=LH;
+  });
+  sf(7,"bold");pdf.text("TOTAL:",ML,y);fechas.forEach((f,fi)=>{var n=data.filter(d=>d.fecha===f).reduce((a,d)=>a+d.n,0);sf(6.5,"bold");pdf.text(""+n,ML+55+fi*cW2,y,{align:"center"});});sf(7,"bold");pdf.text(fmtN(tot),PW-MR,y,{align:"right"});y+=LH+4;
+  if(y+8>PH-14)np();pdf.setFillColor(210,210,210);pdf.rect(ML-2,y-2,PW-ML*2+4,7,"F");sf(7,"bold");pdf.text("DETALLE COMPLETO",ML,y+3);y+=9;
+  var sg={},pk="";
+  data.slice().sort((a,b)=>{var da=a._d||new Date(0),db=b._d||new Date(0);return da-db||a.sede.localeCompare(b.sede);}).forEach((d,i)=>{
+    var k=d.dist+"|"+d.sede;if(!sg[k])sg[k]=[];sg[k].push(d);
+    if(k!==pk){if(pk){if(y+LH+5>PH-14)np();pdf.setDrawColor(150);pdf.line(ML-2,y,PW-MR+2,y);y+=3;sf(7,"bold");pdf.text("SUBTOTAL  "+pk.split("|")[1].toUpperCase().slice(0,24),ML,y);pdf.text(fmtN(sg[pk].reduce((s,x)=>s+x.n,0)),PW-MR,y,{align:"right"});y+=5;}pk=k;}
+    if(y+LH>PH-14)np();
+    if(i%2===0){pdf.setFillColor(250,250,250);pdf.rect(ML-2,y-3,PW-ML*2+4,LH,"F");}
+    sf(7.5,"normal");pdf.text(d.fecha,ML,y);pdf.text(d.dist,ML+22,y);pdf.text(d.sede.length>22?d.sede.slice(0,21)+".":d.sede,ML+32,y);pdf.text(d.h,ML+95,y);sf(7.5,"bold");pdf.text(fmtN(d.n),PW-MR,y,{align:"right"});y+=LH;
+  });
+  if(pk){if(y+LH+5>PH-14)np();pdf.setDrawColor(150);pdf.line(ML-2,y,PW-MR+2,y);y+=3;sf(7,"bold");pdf.text("SUBTOTAL  "+pk.split("|")[1].toUpperCase().slice(0,24),ML,y);pdf.text(fmtN(sg[pk].reduce((s,x)=>s+x.n,0)),PW-MR,y,{align:"right"});y+=6;}
+  if(y+22>PH-14)np();pdf.setLineWidth(1);pdf.line(ML-2,y,PW-MR+2,y);y+=2;sf(10,"bold");pdf.text("TOTAL GENERAL:",ML,y);pdf.text(fmtN(tot),PW-MR,y,{align:"right"});y+=5;sf(7);pdf.text("SEDES: "+sedes.length+"   DIAS: "+fechas.length+"   REGISTROS: "+data.length,ML,y);y+=4;pdf.setLineWidth(1);pdf.line(ML-2,y,PW-MR+2,y);
+  y+=12;pdf.setLineWidth(0.3);pdf.setDrawColor(80);pdf.line(ML+10,y+14,ML+60,y+14);pdf.line(PW/2+10,y+14,PW/2+60,y+14);sf(6.5);pdf.text("Responsable del Programa",ML+35,y+18,{align:"center"});pdf.text("Coordinador/a Zonal",PW/2+35,y+18,{align:"center"});
+  df();pdf.save("clasico-ukllasha-"+new Date().toISOString().slice(0,10)+".pdf");
+}
+</script>
+
+<!-- ===== PARCHE PDF v2 ===== -->
+<style>
+#pdfOv{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9999;display:none;align-items:center;justify-content:center}
+#pdfOv.on{display:flex}
+#pdfBox{background:#1a1e2e;border:1px solid #20b2aa;border-radius:12px;padding:24px;width:560px;max-width:96vw;max-height:90vh;overflow-y:auto;color:#e0e0e0;font-family:'Segoe UI',sans-serif}
+#pdfBox h2{color:#20b2aa;font-size:15px;margin-bottom:16px;border-bottom:1px solid #20b2aa44;padding-bottom:8px}
+.pg{margin-bottom:14px}
+.gt{display:block;font-size:10px;font-weight:700;color:#20b2aa;text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px}
+.fck{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px;cursor:pointer}
+.fck input{accent-color:#20b2aa;width:14px;height:14px}
+.frd{display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:13px;cursor:pointer;margin-bottom:4px}
+.frd input{accent-color:#20b2aa}
+#pdfBox textarea{width:100%;height:75px;background:#0f1117;border:1px solid #20b2aa44;border-radius:6px;color:#e0e0e0;padding:8px;font-size:12px;font-family:'Segoe UI',sans-serif;resize:vertical;margin-top:4px;box-sizing:border-box}
+#pdfBox textarea:focus{outline:none;border-color:#20b2aa}
+.pbtns{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;border-top:1px solid #20b2aa33;padding-top:14px}
+.pbc{background:transparent;border:1px solid #555;color:#aaa;padding:8px 18px;border-radius:6px;cursor:pointer;font-size:13px}
+.pbc:hover{border-color:#888;color:#fff}
+.pbg{background:#20b2aa;border:none;color:#fff;padding:8px 22px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700}
+.pbg:hover{background:#178a84}
+#pdfPrg{display:none;text-align:center;padding:28px 0;color:#20b2aa;font-size:13px}
+.spn{display:inline-block;width:22px;height:22px;border:3px solid #20b2aa44;border-top-color:#20b2aa;border-radius:50%;animation:spn .8s linear infinite;margin-bottom:10px}
+@keyframes spn{to{transform:rotate(360deg)}}
+</style>
+
+<div id="pdfOv">
+ <div id="pdfBox">
+  <h2>⚙️ Configurar Reporte PDF — UKLLASHA 2026</h2>
+  <div id="pdfForm">
+   <div class="pg">
+    <span class="gt">📋 Tipo de reporte</span>
+    <label class="frd"><input type="radio" name="tRep" value="Semanal" checked> Semanal</label>
+    <label class="frd"><input type="radio" name="tRep" value="Quincenal"> Quincenal</label>
+    <label class="frd"><input type="radio" name="tRep" value="Mensual"> Mensual</label>
+   </div>
+   <div class="pg">
+    <span class="gt">📄 Secciones a incluir</span>
+    <label class="fck"><input type="checkbox" id="cKpi" checked> KPIs Resumen (Total, Sedes, Días, Promedio/día)</label>
+    <label class="fck"><input type="checkbox" id="cHor" checked> Asistencia por Horario y Día — detallado por sede</label>
+    <label class="fck"><input type="checkbox" id="cRes" checked> Resumen por Sede</label>
+    <label class="fck"><input type="checkbox" id="cGra" checked> Gráfico Evolución de Asistentes por Distrito</label>
+    <label class="fck"><input type="checkbox" id="cMat"> Matriz Diaria (Sedes × Fechas)</label>
+    <label class="fck"><input type="checkbox" id="cDet"> Detalle Completo (registro a registro)</label>
+    <label class="fck"><input type="checkbox" id="cObs" checked> Cuadro de Observaciones</label>
+   </div>
+   <div class="pg" id="gObs">
+    <span class="gt">📝 Observaciones</span>
+    <textarea id="obsT" placeholder="Escriba aquí las observaciones que aparecerán al final del reporte..."></textarea>
+   </div>
+   <div class="pg">
+    <span class="gt">📁 Modo de generación</span>
+    <label class="frd" style="display:flex;align-items:flex-start;gap:6px;margin-bottom:8px"><input type="radio" name="mGen" value="consolidado" checked style="margin-top:2px"> <span>PDF Consolidado — todos los distritos en un archivo (09D01 → 09D02 → ...)</span></label>
+    <label class="frd" style="display:flex;align-items:flex-start;gap:6px"><input type="radio" name="mGen" value="individual" style="margin-top:2px"> <span>PDF Individual por Distrito — un archivo separado por cada distrito</span></label>
+   </div>
+  </div>
+  <div id="pdfPrg"><div class="spn"></div><br><span id="prgT">Generando reporte...</span></div>
+  <div class="pbtns" id="pdfBtns">
+   <button class="pbc" onclick="cerrarPDF()">✕ Cancelar</button>
+   <button class="pbg" onclick="ejecutarPDF()">📄 Generar PDF(s)</button>
+  </div>
+ </div>
+</div>
+
+<script>
+(function(){
+ // Interceptar botón existente
+ function hookBtn(){
+  document.querySelectorAll('button').forEach(function(b){
+   if(b.getAttribute('onclick')&&b.getAttribute('onclick').indexOf('ePDF')>-1){
+    b.setAttribute('onclick','abrirPDF()');
+    b.innerHTML='📄 Generar PDF';
+   }
+  });
+  var cObs=document.getElementById('cObs');
+  if(cObs)cObs.addEventListener('change',function(){
+   var g=document.getElementById('gObs');
+   g.style.opacity=this.checked?'1':'0.3';
+   g.style.pointerEvents=this.checked?'auto':'none';
+  });
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',hookBtn);
+ else hookBtn();
+})();
+
+window.abrirPDF=function(){document.getElementById('pdfOv').classList.add('on');};
+window.cerrarPDF=function(){
+ document.getElementById('pdfOv').classList.remove('on');
+ document.getElementById('pdfPrg').style.display='none';
+ document.getElementById('pdfForm').style.display='block';
+ document.getElementById('pdfBtns').style.display='flex';
+};
+
+// Helpers
+function _now(){var n=new Date();return n.toLocaleDateString('es-EC',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+n.toLocaleTimeString('es-EC',{hour:'2-digit',minute:'2-digit'});}
+function _fmtF(f){if(!f)return '';if(f.indexOf('-')>-1&&f.length===10){var p=f.split('-');return p[2]+'/'+p[1]+'/'+p[0];}return f;}
+function _fmtN(n){return Number(n).toLocaleString('es-EC');}
+function _sortF(arr){return arr.slice().sort(function(a,b){return new Date(a)-new Date(b)||a.localeCompare(b);});}
+
+// Header
+function _hdr(pdf,cfg,PW,PH,ns,pn,dist){
+ pdf.setFillColor(255,255,255);pdf.rect(0,0,PW,PH,'F');
+ pdf.setFillColor(0,48,96);pdf.rect(0,0,PW,32,'F');
+ pdf.setFillColor(32,178,170);pdf.rect(0,30,PW,2.5,'F');
+ pdf.setFont('helvetica','bold');pdf.setFontSize(9);pdf.setTextColor(255,255,255);
+ pdf.text('SUBSECRETARIA DE EDUCACION DEL DISTRITO DE GUAYAQUIL - ZONA 8',PW/2,9,{align:'center'});
+ pdf.setFont('helvetica','normal');pdf.setFontSize(7.5);pdf.setTextColor(160,215,225);
+ pdf.text('DIRECCION ZONAL DE EDUCACION ESPECIALIZADA E INCLUSIVA',PW/2,16,{align:'center'});
+ pdf.setFontSize(7);pdf.setTextColor(120,180,195);
+ pdf.text('Vacacional UKLLASHA 2026  |  Reporte '+cfg.tipo+(dist?' — Distrito: '+dist:''),PW/2,23,{align:'center'});
+ pdf.setFontSize(6.5);pdf.setTextColor(100,160,175);
+ pdf.text('Generado: '+ns+'    Pág. '+pn,PW-14,23,{align:'right'});
+ return 38;
+}
+
+// Footer
+function _ftr(pdf,PW,PH,ns,ML,MR){
+ pdf.setDrawColor(32,178,170);pdf.setLineWidth(0.3);pdf.line(0,PH-11,PW,PH-11);
+ pdf.setFont('helvetica','normal');pdf.setFontSize(6);pdf.setTextColor(80,80,80);
+ pdf.text('Ministerio de Educacion - Zona 8  |  Vacacional UKLLASHA 2026',ML,PH-6);
+ pdf.setFont('helvetica','italic');pdf.setTextColor(100,100,100);
+ pdf.text('Fecha y hora: '+ns+'  |  Usuario: Z8_JeffersonSolis',PW-MR,PH-6,{align:'right'});
+}
+
+// Check page break
+function _chk(pdf,y,need,PH,ML,MR,PW,ns,pn,cfg,dist){
+ if(y+need>PH-14){_ftr(pdf,PW,PH,ns,ML,MR);pdf.addPage();pn.v++;return _hdr(pdf,cfg,PW,PH,ns,pn.v,dist);}
+ return y;
+}
+
+// Section title
+function _sec(pdf,txt,y,PW,ML){
+ pdf.setFillColor(0,48,96);pdf.rect(ML-2,y,PW-ML*2+4,8,'F');
+ pdf.setFillColor(32,178,170);pdf.rect(ML-2,y,3.5,8,'F');
+ pdf.setFont('helvetica','bold');pdf.setFontSize(8);pdf.setTextColor(255,255,255);
+ pdf.text(txt,ML+6,y+5.5);return y+11;
+}
+
+// Table header
+function _tH(pdf,cols,y,ML){
+ var tw=cols.reduce(function(s,c){return s+(c[1]||0);},0);
+ pdf.setFillColor(210,228,248);pdf.rect(ML-2,y,tw+4,7,'F');
+ pdf.setFont('helvetica','bold');pdf.setFontSize(7);pdf.setTextColor(0,48,96);
+ var cx=ML;
+ cols.forEach(function(c){
+  if(c[2]==='r')pdf.text(c[0],cx+c[1]-1,y+5,{align:'right'});
+  else pdf.text(c[0],cx+1,y+5);
+  cx+=c[1];
+ });
+ return y+8;
+}
+
+// KPIs
+function _kpis(pdf,data,sedes,fechas,y,PW,ML){
+ var tot=data.reduce(function(s,d){return s+Number(d.n);},0);
+ var ks=[['TOTAL ASISTENCIAS',_fmtN(tot)],['SEDES ACTIVAS',''+sedes.length],['DÍAS REGISTRADOS',''+fechas.length],['PROMEDIO / DÍA',fechas.length?_fmtN(Math.round(tot/fechas.length)):'0']];
+ var cw=(PW-ML*2-9)/4;
+ ks.forEach(function(k,i){
+  var x=ML+i*(cw+3);
+  pdf.setFillColor(243,248,255);pdf.roundedRect(x,y,cw,18,2,2,'F');
+  pdf.setDrawColor(32,178,170);pdf.setLineWidth(0.4);pdf.roundedRect(x,y,cw,18,2,2,'S');
+  pdf.setFillColor(32,178,170);pdf.rect(x,y,3.5,18,'F');
+  pdf.setFont('helvetica','bold');pdf.setFontSize(14);pdf.setTextColor(0,48,96);
+  pdf.text(k[1],x+8,y+12);
+  pdf.setFont('helvetica','normal');pdf.setFontSize(6);pdf.setTextColor(90,110,135);
+  pdf.text(k[0],x+8,y+16.5);
+ });
+ return y+24;
+}
+
+// Asistencia por horario/dia por sede
+function _horario(pdf,data,sedes,fechas,y,PW,ML,MR,PH,ns,cfg,pn,dist){
+ y=_sec(pdf,'ASISTENCIA POR HORARIO Y DÍA — DETALLE POR SEDE',y,PW,ML);
+ var LH=5.8;
+ sedes.forEach(function(s){
+  var rs=data.filter(function(d){return d.sede===s;});
+  if(!rs.length)return;
+  y=_chk(pdf,y,18,PH,ML,MR,PW,ns,pn,cfg,dist);
+  pdf.setFillColor(32,178,170);pdf.rect(ML-2,y,PW-ML*2+4,9,'F');
+  pdf.setFont('helvetica','bold');pdf.setFontSize(8.5);pdf.setTextColor(255,255,255);
+  pdf.text((rs[0].dist?rs[0].dist+' — ':'')+s,ML+3,y+6.3);
+  y+=10;
+  var CD=36,CH=34,CA=26;
+  y=_tH(pdf,[['DÍA',CD,'l'],['HORARIO',CH,'l'],['ASISTENTES',CA,'r']],y,ML);
+  var hors=[...new Set(rs.map(function(d){return d.h;}))].filter(function(h){return h!==null&&h!==undefined&&String(h).trim()!=='';}).sort();
+  var totalS=0,ri=0;
+  fechas.forEach(function(f){
+   hors.forEach(function(h){
+    var reg=rs.find(function(d){return d.fecha===f&&d.h===h;});
+    if(!reg)return;
+    y=_chk(pdf,y,LH+1,PH,ML,MR,PW,ns,pn,cfg,dist);
+    if(ri%2===0){pdf.setFillColor(250,253,255);pdf.rect(ML-2,y-1,CD+CH+CA+4,LH,'F');}
+    pdf.setFont('helvetica','normal');pdf.setFontSize(7.5);pdf.setTextColor(40,40,40);
+    pdf.text(_fmtF(f),ML+1,y+3.8);
+    pdf.text(String(h),ML+CD+1,y+3.8);
+    var nv=Number(reg.n);
+    if(nv===0){
+     pdf.setFont('helvetica','bold');pdf.setTextColor(185,0,0);
+     pdf.text('NO REGISTRA',ML+CD+CH+CA,y+3.8,{align:'right'});
+    } else {
+     pdf.setFont('helvetica','bold');pdf.setTextColor(0,48,96);
+     pdf.text(_fmtN(nv),ML+CD+CH+CA,y+3.8,{align:'right'});
+     totalS+=nv;
+    }
+    pdf.setTextColor(200,200,200);
+    pdf.line(ML-2,y+LH-1,ML+CD+CH+CA+2,y+LH-1);
+    y+=LH;ri++;
+   });
+  });
+  y=_chk(pdf,y,LH+2,PH,ML,MR,PW,ns,pn,cfg,dist);
+  pdf.setFillColor(215,235,255);pdf.rect(ML-2,y-1,CD+CH+CA+4,LH+1,'F');
+  pdf.setFont('helvetica','bold');pdf.setFontSize(7.5);pdf.setTextColor(0,48,96);
+  pdf.text('TOTAL SEDE',ML+1,y+4);
+  pdf.text(_fmtN(totalS),ML+CD+CH+CA,y+4,{align:'right'});
+  y+=LH+5;
+ });
+ return y+4;
+}
+
+// Resumen por sede
+function _resumen(pdf,data,sedes,fechas,y,PW,ML,MR,PH,ns,cfg,pn,dist){
+ y=_sec(pdf,'RESUMEN POR SEDE',y,PW,ML);
+ var C=[60,18,22,16,22,25];
+ y=_tH(pdf,[['SEDE',C[0],'l'],['DIST.',C[1],'l'],['TOTAL',C[2],'r'],['DÍAS',C[3],'r'],['PROM/DÍA',C[4],'r'],['TENDENCIA',C[5],'l']],y,ML);
+ var LH=5.8,lF=fechas[fechas.length-1]||'',pF=fechas[fechas.length-2]||'';
+ sedes.forEach(function(s,si){
+  y=_chk(pdf,y,LH+1,PH,ML,MR,PW,ns,pn,cfg,dist);
+  var rs=data.filter(function(d){return d.sede===s;});
+  var n=rs.reduce(function(a,d){return a+Number(d.n);},0);
+  var ds=[...new Set(rs.map(function(d){return d.fecha;}))].length,avg=ds?Math.round(n/ds):0;
+  var nH=data.filter(function(d){return d.sede===s&&d.fecha===lF;}).reduce(function(a,d){return a+Number(d.n);},0);
+  var nA=data.filter(function(d){return d.sede===s&&d.fecha===pF;}).reduce(function(a,d){return a+Number(d.n);},0);
+  var tStr='—',tc=[150,150,150];
+  if(pF&&nA>0){var dp=Math.round(((nH-nA)/nA)*100);tStr=(dp>=0?'▲ +':'▼ ')+Math.abs(dp)+'%';tc=dp>0?[0,130,0]:dp<0?[180,0,0]:[120,120,120];}
+  if(si%2===0){pdf.setFillColor(250,253,255);pdf.rect(ML-2,y-1,C.reduce(function(a,b){return a+b;},0)+4,LH,'F');}
+  pdf.setFont('helvetica','normal');pdf.setFontSize(7.5);pdf.setTextColor(40,40,40);
+  var cx=ML;
+  pdf.text(s.length>22?s.slice(0,21)+'.':s,cx+1,y+4);cx+=C[0];
+  pdf.text(rs[0]?rs[0].dist:'',cx+1,y+4);cx+=C[1];
+  pdf.setFont('helvetica','bold');pdf.setTextColor(0,48,96);
+  pdf.text(_fmtN(n),cx+C[2]-1,y+4,{align:'right'});cx+=C[2];
+  pdf.setFont('helvetica','normal');pdf.setTextColor(60,60,60);
+  pdf.text(''+ds,cx+C[3]-1,y+4,{align:'right'});cx+=C[3];
+  pdf.text(_fmtN(avg),cx+C[4]-1,y+4,{align:'right'});cx+=C[4];
+  pdf.setTextColor(tc[0],tc[1],tc[2]);pdf.setFont('helvetica','bold');
+  pdf.text(tStr,cx+1,y+4);
+  y+=LH;
+ });
+ return y+6;
+}
+
+// Grafico evolucion (lineas suavizadas tipo Gauss por distrito)
+function _grafico(pdf,data,fechas,dists,y,PW,ML,MR,PH,ns,cfg,pn,dist){
+ y=_sec(pdf,'GRÁFICO DE EVOLUCIÓN DE ASISTENTES POR DISTRITO',y,PW,ML);
+ var GW=PW-ML*2,GH=70,GX=ML,GY=y;
+ y=_chk(pdf,y,GH+10,PH,ML,MR,PW,ns,pn,cfg,dist);
+ GY=y;
+ // Fondo
+ pdf.setFillColor(248,252,255);pdf.rect(GX,GY,GW,GH,'F');
+ pdf.setDrawColor(200,220,240);pdf.setLineWidth(0.3);pdf.rect(GX,GY,GW,GH,'S');
+ // Calcular totales por distrito por fecha
+ var allTots=[];
+ var distData=dists.map(function(d){
+  return fechas.map(function(f){
+   var n=data.filter(function(row){return row.dist===d&&row.fecha===f;}).reduce(function(a,row){return a+Number(row.n);},0);
+   allTots.push(n);return n;
+  });
+ });
+ var maxV=Math.max.apply(null,allTots)||1;
+ // Grilla
+ pdf.setDrawColor(220,230,245);pdf.setLineWidth(0.2);
+ [0.25,0.5,0.75,1].forEach(function(r){
+  var gy=GY+GH-(r*GH);
+  pdf.line(GX,gy,GX+GW,gy);
+  pdf.setFont('helvetica','normal');pdf.setFontSize(5.5);pdf.setTextColor(130,150,170);
+  pdf.text(_fmtN(Math.round(maxV*r)),GX-2,gy+1.5,{align:'right'});
+ });
+ // Etiquetas eje X
+ var step=Math.max(1,Math.floor(fechas.length/8));
+ fechas.forEach(function(f,fi){
+  if(fi%step===0||fi===fechas.length-1){
+   var gx=GX+(fi/(Math.max(fechas.length-1,1)))*GW;
+   pdf.setDrawColor(210,225,240);pdf.setLineWidth(0.2);pdf.line(gx,GY,gx,GY+GH);
+   pdf.setFont('helvetica','normal');pdf.setFontSize(5);pdf.setTextColor(100,120,140);
+   pdf.text(_fmtF(f),gx,GY+GH+4,{align:'center'});
+  }
+ });
+ // Colores para distritos
+ var cols=[[0,114,189],[217,83,25],[237,177,32],[126,47,142],[119,172,48],[77,190,238],[162,20,47],[0,168,107],[255,127,0],[102,102,255],[165,42,42],[72,61,139]];
+ // Dibujar curvas (lineas punto a punto con suavizado simple)
+ dists.forEach(function(d,di){
+  var pts=distData[di];
+  if(!pts.length)return;
+  var col=cols[di%cols.length];
+  pdf.setDrawColor(col[0],col[1],col[2]);pdf.setLineWidth(1.2);
+  var prevX=null,prevY=null;
+  pts.forEach(function(v,fi){
+   var gx=GX+(fi/(Math.max(fechas.length-1,1)))*GW;
+   var gy=GY+GH-(v/maxV)*GH;
+   if(prevX!==null){pdf.line(prevX,prevY,gx,gy);}
+   // Punto
+   pdf.setFillColor(col[0],col[1],col[2]);
+   pdf.circle(gx,gy,0.8,'F');
+   prevX=gx;prevY=gy;
+  });
+ });
+ // Leyenda
+ var LX=GX,LY=GY+GH+8;
+ dists.forEach(function(d,di){
+  var col=cols[di%cols.length];
+  var lx=LX+(di%6)*((GW)/6);
+  var ly=LY+Math.floor(di/6)*7;
+  pdf.setFillColor(col[0],col[1],col[2]);pdf.rect(lx,ly,6,3,'F');
+  pdf.setFont('helvetica','normal');pdf.setFontSize(5.5);pdf.setTextColor(40,40,40);
+  pdf.text(d,lx+7.5,ly+3);
+ });
+ var legendRows=Math.ceil(dists.length/6);
+ y=LY+legendRows*7+4;
+ return y+4;
+}
+
+// Matriz diaria
+function _matriz(pdf,data,sedes,fechas,y,PW,ML,MR,PH,ns,cfg,pn,dist){
+ y=_sec(pdf,'MATRIZ DE ASISTENCIA DIARIA — SEDES × FECHAS',y,PW,ML);
+ var cW=Math.min(22,(PW-ML*2-52)/Math.max(fechas.length,1));
+ y=_chk(pdf,y,10,PH,ML,MR,PW,ns,pn,cfg,dist);
+ pdf.setFillColor(210,228,248);pdf.rect(ML-2,y,PW-ML*2+4,7,'F');
+ pdf.setFont('helvetica','bold');pdf.setFontSize(6.5);pdf.setTextColor(0,48,96);
+ pdf.text('SEDE',ML+1,y+5);
+ fechas.forEach(function(f,fi){pdf.text(_fmtF(f).slice(0,5),ML+50+fi*cW+(cW/2),y+5,{align:'center'});});
+ pdf.text('TOTAL',PW-MR,y+5,{align:'right'});y+=8;
+ var LH=5.5;
+ sedes.forEach(function(s,si){
+  y=_chk(pdf,y,LH+1,PH,ML,MR,PW,ns,pn,cfg,dist);
+  var rt=0;
+  var cells=fechas.map(function(f){
+   var n=data.filter(function(d){return d.sede===s&&d.fecha===f;}).reduce(function(a,d){return a+Number(d.n);},0);
+   rt+=n;return n;
+  });
+  if(si%2===0){pdf.setFillColor(250,253,255);pdf.rect(ML-2,y-1,PW-ML*2+4,LH,'F');}
+  pdf.setFont('helvetica','normal');pdf.setFontSize(6.5);pdf.setTextColor(40,40,40);
+  pdf.text(s.length>20?s.slice(0,19)+'.':s,ML+1,y+3.8);
+  cells.forEach(function(n,fi){
+   var prev=fi>0?cells[fi-1]:null;
+   var tc=prev!==null&&prev>0?(n>prev?[0,130,0]:n<prev?[180,0,0]:[100,100,100]):[60,60,60];
+   pdf.setTextColor(tc[0],tc[1],tc[2]);
+   pdf.setFont('helvetica',n===0?'bold':'normal');
+   if(n===0)pdf.setTextColor(185,0,0);
+   pdf.text(n>0?''+n:(cells.some(function(c){return c!==null;})?'0':'-'),ML+50+fi*cW+(cW/2),y+3.8,{align:'center'});
+  });
+  pdf.setFont('helvetica','bold');pdf.setTextColor(0,48,96);
+  pdf.text(_fmtN(rt),PW-MR,y+3.8,{align:'right'});
+  y+=LH;
+ });
+ // Fila total
+ y=_chk(pdf,y,LH+2,PH,ML,MR,PW,ns,pn,cfg,dist);
+ pdf.setFillColor(215,235,255);pdf.rect(ML-2,y-1,PW-ML*2+4,LH+1,'F');
+ pdf.setFont('helvetica','bold');pdf.setFontSize(6.5);pdf.setTextColor(0,48,96);
+ pdf.text('TOTAL DÍA',ML+1,y+4);
+ var gt=0;
+ fechas.forEach(function(f,fi){
+  var n=data.filter(function(d){return d.fecha===f;}).reduce(function(a,d){return a+Number(d.n);},0);
+  gt+=n;
+  pdf.setTextColor(0,100,170);pdf.text(''+n,ML+50+fi*cW+(cW/2),y+4,{align:'center'});
+ });
+ pdf.setTextColor(0,48,96);pdf.text(_fmtN(gt),PW-MR,y+4,{align:'right'});
+ return y+LH+6;
+}
+
+// Detalle completo
+function _detalle(pdf,data,fechas,y,PW,ML,MR,PH,ns,cfg,pn,dist){
+ y=_sec(pdf,'DETALLE COMPLETO DE REGISTROS',y,PW,ML);
+ var C=[32,55,25,22,22];
+ y=_tH(pdf,[['FECHA',C[0],'l'],['SEDE',C[1],'l'],['DIST.',C[2],'l'],['HORARIO',C[3],'l'],['ASIST.',C[4],'r']],y,ML);
+ var LH=5.5;
+ data.forEach(function(d,i){
+  y=_chk(pdf,y,LH+1,PH,ML,MR,PW,ns,pn,cfg,dist);
+  if(i%2===0){pdf.setFillColor(250,253,255);pdf.rect(ML-2,y-1,C.reduce(function(a,b){return a+b;},0)+4,LH,'F');}
+  pdf.setFont('helvetica','normal');pdf.setFontSize(7);pdf.setTextColor(40,40,40);
+  var cx=ML;
+  pdf.text(_fmtF(d.fecha),cx+1,y+3.8);cx+=C[0];
+  pdf.text(d.sede?d.sede.slice(0,18):'-',cx+1,y+3.8);cx+=C[1];
+  pdf.text(d.dist||'-',cx+1,y+3.8);cx+=C[2];
+  pdf.text(d.h||'-',cx+1,y+3.8);cx+=C[3];
+  var nv=Number(d.n);
+  if(nv===0){pdf.setFont('helvetica','bold');pdf.setTextColor(185,0,0);pdf.text('NO REGISTRA',cx+C[4]-1,y+3.8,{align:'right'});}
+  else{pdf.setFont('helvetica','bold');pdf.setTextColor(0,48,96);pdf.text(_fmtN(nv),cx+C[4]-1,y+3.8,{align:'right'});}
+  y+=LH;
+ });
+ return y+6;
+}
+
+// Observaciones
+function _obs(pdf,texto,y,PW,ML,MR,PH,ns,pn,cfg,dist){
+ y=_chk(pdf,y,40,PH,ML,MR,PW,ns,pn,cfg,dist);
+ y=_sec(pdf,'OBSERVACIONES',y,PW,ML);
+ pdf.setFillColor(255,252,240);pdf.rect(ML-2,y,PW-ML*2+4,36,'F');
+ pdf.setDrawColor(200,180,50);pdf.setLineWidth(0.3);pdf.rect(ML-2,y,PW-ML*2+4,36,'S');
+ pdf.setFont('helvetica','normal');pdf.setFontSize(8);pdf.setTextColor(50,50,50);
+ var lines=pdf.splitTextToSize(texto||'(Sin observaciones)',PW-ML*2);
+ pdf.text(lines,ML+2,y+7);
+ return y+40;
+}
+
+// Generar un bloque de reporte para un dist especifico
+function _buildReport(pdf,data,cfg,ns,pn,targetDist){
+ var J=window.jspdf.jsPDF;
+ var PW=pdf.internal.pageSize.getWidth(),PH=pdf.internal.pageSize.getHeight(),ML=14,MR=14;
+ var filtData=targetDist?data.filter(function(d){return d.dist===targetDist;}):data;
+ // Respetar 0 explícito, ignorar vacíos
+ var vData=filtData.slice();
+ var sedes=[...new Set(vData.map(function(d){return d.sede;}))].filter(Boolean).sort();
+ var fechas=_sortF([...new Set(vData.map(function(d){return d.fecha;}))].filter(Boolean));
+ var dists=[...new Set(vData.map(function(d){return d.dist;}))].filter(Boolean).sort();
+ var y=_hdr(pdf,cfg,PW,PH,ns,pn.v,targetDist);
+ if(cfg.kpis)y=_kpis(pdf,vData,sedes,fechas,y,PW,ML);
+ if(cfg.horario)y=_horario(pdf,vData,sedes,fechas,y,PW,ML,MR,PH,ns,cfg,pn,targetDist);
+ if(cfg.resumen)y=_resumen(pdf,vData,sedes,fechas,y,PW,ML,MR,PH,ns,cfg,pn,targetDist);
+ if(cfg.grafico)y=_grafico(pdf,vData,fechas,dists,y,PW,ML,MR,PH,ns,cfg,pn,targetDist);
+ if(cfg.matriz)y=_matriz(pdf,vData,sedes,fechas,y,PW,ML,MR,PH,ns,cfg,pn,targetDist);
+ if(cfg.detalle)y=_detalle(pdf,vData,fechas,y,PW,ML,MR,PH,ns,cfg,pn,targetDist);
+ if(cfg.obs)y=_obs(pdf,cfg.obsTexto,y,PW,ML,MR,PH,ns,pn,cfg,targetDist);
+ _ftr(pdf,PW,PH,ns,ML,MR);
+}
+
+// Generar PDF consolidado
+function genConsolidado(data,dists,fechas,cfg){
+ var J=window.jspdf.jsPDF;
+ var pdf=new J({orientation:'landscape',unit:'mm',format:'a4'});
+ var ns=_now(),pn={v:1};
+ // Ordenar distritos 09D01 -> 09D12
+ dists.sort(function(a,b){return a.localeCompare(b,undefined,{numeric:true});});
+ dists.forEach(function(d,di){
+  if(di>0){pdf.addPage();pn.v++;}
+  _buildReport(pdf,data,cfg,ns,pn,d);
+ });
+ var tipo=cfg.tipo;
+ var fecha=new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-');
+ pdf.save('Reporte_Consolidado_'+tipo+'_'+fecha+'.pdf');
+ cerrarPDF();
+ document.getElementById('prgT').textContent='¡PDF generado exitosamente!';
+}
+
+// Generar PDFs individuales por distrito
+function genIndividual(data,dists,fechas,cfg){
+ var J=window.jspdf.jsPDF;
+ var ns=_now();
+ var tipo=cfg.tipo;
+ var fecha=new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-');
+ dists.sort(function(a,b){return a.localeCompare(b,undefined,{numeric:true});});
+ dists.forEach(function(d){
+  var pdf=new J({orientation:'landscape',unit:'mm',format:'a4'});
+  var pn={v:1};
+  _buildReport(pdf,data,cfg,ns,pn,d);
+  pdf.save('Reporte_'+d+'_'+tipo+'_'+fecha+'.pdf');
+ });
+ cerrarPDF();
+ document.getElementById('prgT').textContent='¡PDFs generados: '+dists.length+' archivos!';
+}
+
+window.ejecutarPDF=function(){
+ var cfg={
+  tipo:document.querySelector('[name=tRep]:checked').value,
+  kpis:document.getElementById('cKpi').checked,
+  horario:document.getElementById('cHor').checked,
+  resumen:document.getElementById('cRes').checked,
+  grafico:document.getElementById('cGra').checked,
+  matriz:document.getElementById('cMat').checked,
+  detalle:document.getElementById('cDet').checked,
+  obs:document.getElementById('cObs').checked,
+  obsTexto:document.getElementById('obsT').value.trim(),
+  modo:document.querySelector('[name=mGen]:checked').value
+ };
+ var raw=typeof gF==='function'?gF():[];
+ if(!raw||!raw.length){alert('Sin datos. Cargue un CSV primero.');return;}
+ // 0 explícito = válido; celda vacía = ignorar
+ var data=raw.slice();
+ if(!data.length){alert('Sin datos válidos.');return;}
+ var dists=[...new Set(data.map(function(d){return d.dist;}))].filter(Boolean).sort(function(a,b){return a.localeCompare(b,undefined,{numeric:true});});
+ var fechas=_sortF([...new Set(data.map(function(d){return d.fecha;}))].filter(Boolean));
+ document.getElementById('pdfForm').style.display='none';
+ document.getElementById('pdfBtns').style.display='none';
+ document.getElementById('pdfPrg').style.display='block';
+ document.getElementById('prgT').textContent='Generando reporte...';
+ setTimeout(function(){
+  try{
+   if(cfg.modo==='individual')genIndividual(data,dists,fechas,cfg);
+   else genConsolidado(data,dists,fechas,cfg);
+  }catch(e){alert('Error: '+e.message);console.error(e);cerrarPDF();}
+ },150);
+};
+</script>
+</body>
+</html>
